@@ -34,7 +34,7 @@ That's it. No filename to remember or type.
 
 Python doesn't have a single, obvious "run the project" command the way Go,
 Rust (`cargo run`), or Node (`npm start`) do. `py-modu` is a small, focused
-tool that fills that gap for simple scripts and small projects it doesn't
+tool that fills that gap for simple scripts and small projects — it doesn't
 try to be a build system, a dependency manager, or a task runner. It does
 one thing: figure out what you meant by "run this," and run it.
 
@@ -63,7 +63,46 @@ py -m pip install --user pipx
 py -m pipx ensurepath
 ```
 
-Restart your terminal afterward so the updated `PATH` takes effect.
+**Important — this step alone won't make `pipx` runnable yet.**
+`ensurepath` edits your shell's config file (`~/.zshrc`, `~/.bashrc`, etc.),
+but your *currently open* terminal already loaded its environment before
+that edit happened, so it won't see the change until you either:
+
+```bash
+source ~/.zshrc     # zsh most macOS terminals and many Linux distros
+# or
+source ~/.bashrc    # bash
+```
+
+or just close the terminal and open a new one that's the guaranteed
+fix, since a fresh shell reads the config from scratch.
+
+If `pipx` still isn't found after reloading, run this to confirm the
+`PATH` edit actually landed in the file you'd expect:
+
+```bash
+grep -n "\.local/bin" ~/.zshrc   # or ~/.bashrc
+```
+
+If nothing prints, `ensurepath` wrote to a different file than the one
+your shell reads on startup (this happens on some setups, e.g. it writes
+to `~/.zprofile` instead of `~/.zshrc`). Add the line manually and reload:
+
+```bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+**Don't want to wait or reload at all?** Call `pipx` through Python
+directly this works immediately in the same terminal session, bypassing
+the `PATH` issue entirely:
+
+```bash
+python3 -m pipx install py-modu
+```
+
+Once you've reloaded your shell (or opened a new one) at least once
+afterward, the plain `pipx` and `pyrun` commands work normally from then on.
 
 ### Alternative: pip
 
@@ -71,15 +110,35 @@ Restart your terminal afterward so the updated `PATH` takes effect.
 pip install py-modu
 ```
 
-On some Linux distributions, installing CLI tools system-wide with plain
-`pip` is blocked (PEP 668, "externally-managed-environment"). If you hit
-that error, either use `pipx` above, or install into a virtual environment:
+#### "externally-managed-environment" error
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate      # .venv\Scripts\activate on Windows
-pip install py-modu
+On Debian/Ubuntu (Ubuntu 23.04+, Debian 12+) and some other distros, a
+plain `pip install` outside a virtual environment is blocked by default
+(PEP 668) and fails with:
+
 ```
+error: externally-managed-environment
+× This environment is externally managed
+```
+
+This is a safety feature protecting your system's Python install, not a
+bug in `py-modu`. Pick one:
+
+1. **Use pipx** (see above) the cleanest fix, no flags needed, this is
+   exactly the problem pipx exists to solve.
+2. **Install into a virtual environment:**
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate      # .venv\Scripts\activate on Windows
+   pip install py-modu
+   ```
+   `pyrun` will only be available while that venv is active.
+3. **Override the protection directly**, as the error message itself
+   suggests works, but only reach for this if 1 and 2 don't fit your
+   situation, since it's telling `pip` to bypass your OS's own safety check:
+   ```bash
+   pip install --user py-modu --break-system-packages
+   ```
 
 ### Verifying the install
 
@@ -112,7 +171,7 @@ pyrun .
    directory, that file is used.
 
 If there are multiple `.py` files and none matches the list above,
-`py-modu` refuses to guess and tells you what to do instead, it will
+`py-modu` refuses to guess and tells you what to do instead it will
 never silently pick the wrong file.
 
 ### Run a specific file
@@ -143,7 +202,7 @@ pyrun --help
 
 ## How it works
 
-`py-modu` is intentionally simple under the hood, no magic, no config
+`py-modu` is intentionally simple under the hood no magic, no config
 files, no daemon process.
 
 1. **Discovery**: it lists `.py` files in the target directory and applies
@@ -181,7 +240,7 @@ filename, the way `go run .` does for Go. It's a small quality-of-life
 tool for people who bounce between a lot of small scripts and projects.
 
 **Does it work with virtual environments?**
-Yes — activate your venv first, then run `pyrun .` as normal. It uses
+Yes, activate your venv first, then run `pyrun .` as normal. It uses
 whatever interpreter is currently active.
 
 **Does it manage dependencies, like `poetry` or `uv`?**
@@ -202,11 +261,12 @@ of `&&`, `set -e`, or a CI step's pass/fail status.
 
 | Problem | Fix |
 |---|---|
-| `pyrun: command not found` after install | Open a new terminal, or run `pipx ensurepath` again |
+| `pyrun: command not found` right after `pipx install` | Your shell hasn't reloaded its `PATH` yet see [pipx PATH gotcha](#recommended-pipx-isolated-global-no-system-conflicts), or run `source ~/.zshrc` / `source ~/.bashrc` |
+| `zsh: command not found: pipx` right after `ensurepath` | Same cause as above — reload your shell config, or use `python3 -m pipx install py-modu` in the meantime |
 | `Error: no Python files found` | You're not in the directory you think you are — check `pwd` |
 | `Error: found multiple Python files ... and none is named main.py/app.py/run.py` | Rename your entry file to one of those three, or run it explicitly: `pyrun yourfile.py` |
 | Wrong Python version / missing packages when running | Make sure your virtualenv is activated *before* running `pyrun .` |
-| `pip install py-modu` fails with "externally-managed-environment" | Use `pipx install py-modu` instead, or install inside a venv |
+| `pip install py-modu` fails with "externally-managed-environment" | See [externally-managed-environment error](#externally-managed-environment-error) above |
 
 ## Development
 
@@ -245,4 +305,4 @@ Please keep changes focused `py-modu` is intentionally small in scope.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. see [LICENSE](LICENSE).

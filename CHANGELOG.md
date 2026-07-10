@@ -24,6 +24,8 @@
 - Documented a one-line `pipx` bootstrap so install works the same on
   any system without prerequisites.
 
+- Expanded docs: dedicated walkthroughs fot the pipx PATH-not-loaded-yet gotcha right after `ensurepath`, and the PEP 668 "externally-managed-environment" error on Debian/Ubuntu both are common on a fresh install, not bugs in the tool itself.
+
 
 ## 0.1.0
 - Initial internal prototype (`py run .`), flat layout.
