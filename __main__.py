@@ -1,4 +1,4 @@
-from .core import locate_and_run
+from core import locate_and_run
 
 def main():
     locate_and_run()

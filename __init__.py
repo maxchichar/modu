@@ -1,1 +1,1 @@
-from .core import locate_and_run
+from core import locate_and_run

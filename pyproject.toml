@@ -13,4 +13,4 @@ dependencies = []
 requires-python = ">=3.8"
 
 [project.scripts]
-py = "modu.core:locate_and_run"
+py = "core:locate_and_run"
