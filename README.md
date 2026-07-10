@@ -1,14 +1,42 @@
 # py-modu
 
+[![PyPI version](https://img.shields.io/pypi/v/py-modu.svg)](https://pypi.org/project/py-modu/)
+[![Python versions](https://img.shields.io/pypi/pyversions/py-modu.svg)](https://pypi.org/project/py-modu/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A Go-like CLI runner for Python projects.
 
 In Go, you run a project with `go run .`. In Python, you're stuck typing
-`python3 the_exact_filename.py` every time. `py-modu` gives Python the same
-convenience: type `pyrun .` and it figures out what to execute.
+`python3 the_exact_filename.py` every time and remembering that filename
+across a dozen little projects gets old fast. `py-modu` gives Python the
+same convenience:
 
 ```bash
 pyrun .
 ```
+
+That's it. No filename to remember or type.
+
+## Table of contents
+
+- [Why py-modu](#why-py-modu)
+- [Installation](#installation)
+- [Usage](#usage)
+- [How it works](#how-it-works)
+- [Comparison with Go](#comparison-with-go)
+- [FAQ](#faq)
+- [Troubleshooting](#troubleshooting)
+- [Development](#development)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Why py-modu
+
+Python doesn't have a single, obvious "run the project" command the way Go,
+Rust (`cargo run`), or Node (`npm start`) do. `py-modu` is a small, focused
+tool that fills that gap for simple scripts and small projects it doesn't
+try to be a build system, a dependency manager, or a task runner. It does
+one thing: figure out what you meant by "run this," and run it.
 
 ## Installation
 
@@ -28,9 +56,14 @@ Don't have `pipx` yet? One line gets you both, on any OS:
 python3 -m pip install --user pipx && python3 -m pipx ensurepath
 ```
 
-(Windows: use `py -m pip install --user pipx` then `py -m pipx ensurepath`
-in PowerShell, then restart the terminal so the updated `PATH` takes
-effect.)
+On Windows (PowerShell), use `py` instead of `python3`:
+
+```powershell
+py -m pip install --user pipx
+py -m pipx ensurepath
+```
+
+Restart your terminal afterward so the updated `PATH` takes effect.
 
 ### Alternative: pip
 
@@ -40,7 +73,7 @@ pip install py-modu
 
 On some Linux distributions, installing CLI tools system-wide with plain
 `pip` is blocked (PEP 668, "externally-managed-environment"). If you hit
-that, use `pipx` instead, or install into a virtual environment:
+that error, either use `pipx` above, or install into a virtual environment:
 
 ```bash
 python3 -m venv .venv
@@ -48,38 +81,132 @@ source .venv/bin/activate      # .venv\Scripts\activate on Windows
 pip install py-modu
 ```
 
-`py-modu` works on **Python 3.8 and newer**, on Linux, macOS, and Windows.
-
-## Usage
+### Verifying the install
 
 ```bash
-# Run the current project. py-modu looks for, in order:
-#   1. main.py
-#   2. app.py
-#   3. run.py
-#   4. the single .py file in the directory, if there's only one
-pyrun .
-
-# Run a specific file
-pyrun path/to/script.py
-
-# Pass arguments through to your script's sys.argv
-pyrun . -- --input data.csv --verbose
-
-# Check the installed version
 pyrun --version
 ```
 
-If `pyrun .` finds more than one `.py` file and none of them is named
-`main.py`, `app.py`, or `run.py`, it will ask you to either rename one of
-them or run the target file explicitly — it will never silently guess.
+Should print `pyrun 0.1.1`. If you get a "command not found" error right
+after a `pipx install`, it usually means your shell hasn't picked up the
+updated `PATH` yet open a new terminal window, or run
+`pipx ensurepath` again and restart.
 
-## Why not just use `python3 script.py`?
+**Compatibility**: Python 3.8 and newer. Tested in CI on Linux, macOS, and
+Windows across Python 3.8 through 3.13.
 
-You still can `py-modu` doesn't replace anything, it just removes the
-need to remember or type the exact entry-point filename, the same way
-`go run .` does for Go projects. It's a small quality-of-life tool for
-people who bounce between a lot of small Python scripts and projects.
+## Usage
+
+### Run the current project
+
+```bash
+pyrun .
+```
+
+`py-modu` looks for an entry point in the current directory, in this order:
+
+1. `main.py`
+2. `app.py`
+3. `run.py`
+4. If none of those exist but there's exactly **one** `.py` file in the
+   directory, that file is used.
+
+If there are multiple `.py` files and none matches the list above,
+`py-modu` refuses to guess and tells you what to do instead, it will
+never silently pick the wrong file.
+
+### Run a specific file
+
+```bash
+pyrun path/to/script.py
+```
+
+Bypasses auto-detection entirely and just runs that file.
+
+### Pass arguments through to your script
+
+Anything after `--` goes straight into your script's `sys.argv`:
+
+```bash
+pyrun . -- --input data.csv --verbose
+```
+
+Inside `main.py`, `sys.argv[1:]` would be `['--input', 'data.csv', '--verbose']`,
+exactly as if you'd run `python3 main.py --input data.csv --verbose` directly.
+
+### Check the version or see all options
+
+```bash
+pyrun --version
+pyrun --help
+```
+
+## How it works
+
+`py-modu` is intentionally simple under the hood, no magic, no config
+files, no daemon process.
+
+1. **Discovery**: it lists `.py` files in the target directory and applies
+   the `main.py` → `app.py` → `run.py` → single-file rule described above.
+2. **Execution**: it runs the chosen file as a real subprocess
+   `subprocess.run([sys.executable, target_file, *your_args])` not an
+   `import`. This matters for two reasons:
+   - `if __name__ == "__main__":` in your script behaves exactly as it
+     would if you'd run it directly.
+   - Your script's exit code is passed back through as `pyrun`'s own exit
+     code, so `pyrun .` works correctly inside CI pipelines and shell
+     scripts that check `$?`.
+3. **Interpreter resolution**: it uses `sys.executable`, i.e. whichever
+   Python interpreter is currently active. Run it inside an activated
+   virtualenv and your project's dependencies are available exactly as if
+   you'd typed `python3 file.py` yourself `py-modu` doesn't create,
+   manage, or need to know about virtual environments at all.
+
+## Comparison with Go
+
+| | Go | py-modu |
+|---|---|---|
+| Run current project | `go run .` | `pyrun .` |
+| Run a specific file | `go run script.go` | `pyrun script.py` |
+| Entry point convention | package `main`, func `main()` | `main.py`, `app.py`, or `run.py` |
+| Pass arguments | `go run . -- args` | `pyrun . -- args` |
+| Ambiguous entry point | compile error | explicit message, asks you to disambiguate |
+
+## FAQ
+
+**Why not just use `python3 script.py`?**
+You still can `py-modu` doesn't replace anything or change how Python
+itself runs files. It just removes the need to remember or type the exact
+filename, the way `go run .` does for Go. It's a small quality-of-life
+tool for people who bounce between a lot of small scripts and projects.
+
+**Does it work with virtual environments?**
+Yes — activate your venv first, then run `pyrun .` as normal. It uses
+whatever interpreter is currently active.
+
+**Does it manage dependencies, like `poetry` or `uv`?**
+No. `py-modu` only decides *which file to run* it has no opinion about
+package management. Use it alongside `pip`, `poetry`, `uv`, or whatever
+you already use.
+
+**What if I have both `main.py` and `app.py`?**
+`main.py` wins the check order is fixed and always favors `main.py`
+first, matching the Go convention this tool is modeled on.
+
+**Can I use it in a Makefile or CI pipeline?**
+Yes. Because `pyrun` runs your script as a real subprocess and forwards
+its exit code, `pyrun .` behaves like any other command for the purposes
+of `&&`, `set -e`, or a CI step's pass/fail status.
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `pyrun: command not found` after install | Open a new terminal, or run `pipx ensurepath` again |
+| `Error: no Python files found` | You're not in the directory you think you are — check `pwd` |
+| `Error: found multiple Python files ... and none is named main.py/app.py/run.py` | Rename your entry file to one of those three, or run it explicitly: `pyrun yourfile.py` |
+| Wrong Python version / missing packages when running | Make sure your virtualenv is activated *before* running `pyrun .` |
+| `pip install py-modu` fails with "externally-managed-environment" | Use `pipx install py-modu` instead, or install inside a venv |
 
 ## Development
 
@@ -90,6 +217,31 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 pytest
 ```
+
+Project layout:
+
+```
+py-modu/
+├── src/py_modu/
+│   ├── __init__.py     # exposes main() and __version__
+│   ├── __main__.py     # enables `python -m py_modu`
+│   └── core.py         # entry-point discovery + execution logic
+├── tests/
+│   └── test_core.py
+├── pyproject.toml
+└── README.md
+```
+
+## Contributing
+
+Issues and pull requests are welcome. Before opening a PR:
+
+```bash
+pip install -e ".[dev]"
+pytest
+```
+
+Please keep changes focused `py-modu` is intentionally small in scope.
 
 ## License
 
