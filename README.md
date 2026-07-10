@@ -1,74 +1,96 @@
-# py-modu 🚀
+# py-modu
 
-`py-modu` is a lightweight, Go-inspired command-line utility for Python developers. It brings the simplicity of Go's workflow to Python by providing a global binary command that executes your code directories instantly.
+A Go-like CLI runner for Python projects.
 
-Instead of typing exact filenames like `python3 very_long_filename_test.py`, you simply type `py run .`.
+In Go, you run a project with `go run .`. In Python, you're stuck typing
+`python3 the_exact_filename.py` every time. `py-modu` gives Python the same
+convenience: type `pyrun .` and it figures out what to execute.
 
----
-
-## Features
-
-- **Zero Configuration**: No hardcoded main file requirements.
-- **Smart Detection**: Automatically scans your working directory for any `.py` file.
-- **Timestamp Priority**: If multiple Python files exist, it automatically executes the most recently modified one.
-
----
+```bash
+pyrun .
+```
 
 ## Installation
 
-### Standard Global Installation
-To use `py` anywhere across your machine without restrictions, run:
+### Recommended: pipx (isolated, global, no system conflicts)
 
 ```bash
-python3 -m pip install py-modu --break-system-packages
+pipx install py-modu
 ```
-*(Note: Re-open your terminal or run `rehash` if the command is not picked up instantly).*
 
-### System Path Configuration (Linux/macOS troubleshooting)
-If your terminal returns `zsh: command not found: py` after installation, Python's user binary path is missing from your environment. Add it by running:
+[pipx](https://pypa.github.io/pipx/) installs CLI tools into their own
+isolated environment and puts them on your `PATH`, so `pyrun` is available
+everywhere without touching your system Python or any project's virtualenv.
+
+Don't have `pipx` yet? One line gets you both, on any OS:
 
 ```bash
-echo 'export PATH="HOME/.local/bin:PATH"' >> ~/.zshrc
-source ~/.zshrc
+python3 -m pip install --user pipx && python3 -m pipx ensurepath
 ```
 
----
+(Windows: use `py -m pip install --user pipx` then `py -m pipx ensurepath`
+in PowerShell, then restart the terminal so the updated `PATH` takes
+effect.)
+
+### Alternative: pip
+
+```bash
+pip install py-modu
+```
+
+On some Linux distributions, installing CLI tools system-wide with plain
+`pip` is blocked (PEP 668, "externally-managed-environment"). If you hit
+that, use `pipx` instead, or install into a virtual environment:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate      # .venv\Scripts\activate on Windows
+pip install py-modu
+```
+
+`py-modu` works on **Python 3.8 and newer**, on Linux, macOS, and Windows.
 
 ## Usage
 
-Navigate to any directory containing Python files and run:
-
 ```bash
-py run .
+# Run the current project. py-modu looks for, in order:
+#   1. main.py
+#   2. app.py
+#   3. run.py
+#   4. the single .py file in the directory, if there's only one
+pyrun .
+
+# Run a specific file
+pyrun path/to/script.py
+
+# Pass arguments through to your script's sys.argv
+pyrun . -- --input data.csv --verbose
+
+# Check the installed version
+pyrun --version
 ```
 
-### Working inside Virtual Environments (`venv`)
-If you install `py-modu` inside a local project virtual environment, the global shell hook is scoped inside that space. You must activate the environment first:
+If `pyrun .` finds more than one `.py` file and none of them is named
+`main.py`, `app.py`, or `run.py`, it will ask you to either rename one of
+them or run the target file explicitly — it will never silently guess.
+
+## Why not just use `python3 script.py`?
+
+You still can `py-modu` doesn't replace anything, it just removes the
+need to remember or type the exact entry-point filename, the same way
+`go run .` does for Go projects. It's a small quality-of-life tool for
+people who bounce between a lot of small Python scripts and projects.
+
+## Development
 
 ```bash
-# 1. Activate your local environment
-source .venv/bin/activate
-
-# 2. Run the shortcut cleanly
-py run .
+git clone https://github.com/maxchichar/py-modu.git
+cd py-modu
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+pytest
 ```
-Alternatively, call the environment binary directly without activation:
-```bash
-./.venv/bin/py run .
-```
-
----
-
-## How It Works Under the Hood
-
-When you execute `py run .`:
-1. It validates the positional arguments.
-2. It fetches all `.py` files inside your current active folder directory.
-3. It sorts them using file modification metadata (`os.path.getmtime`).
-4. It calls your active system Python interpreter to spin up a process running your code.
-
----
 
 ## License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+MIT — see [LICENSE](LICENSE).
