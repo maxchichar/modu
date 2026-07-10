@@ -1,0 +1,16 @@
+# Python bytecode cache (compiled files)
+__pycache__/
+*.pyc
+
+# Python packaging and distribution metadata
+*.egg-info/
+build/
+dist/
+
+# Local virtual environments (if you or other devs create them)
+.venv/
+venv/
+ENV/
+
+# System specific files
+.DS_Store

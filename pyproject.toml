@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "py-modu"
+version = "0.1.0"
+description = "A lightweight Python module and utility package"
+authors = [
+    {name = "Chibueze Maxwell", email = "maxwellchibuezecharles@gmail.com"}
+]
+dependencies = []
+requires-python = ">=3.8"
+
+[project.scripts]
+py = "modu.core:locate_and_run"
