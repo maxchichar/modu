@@ -1,1 +1,0 @@
-from core import locate_and_run
